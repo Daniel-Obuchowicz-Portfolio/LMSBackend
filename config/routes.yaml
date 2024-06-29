@@ -1,5 +1,54 @@
-controllers:
-    resource:
-        path: ../src/Controller/
-        namespace: App\Controller
-    type: attribute
+user_register:
+    path: /api/register
+    controller: App\Controller\UserController::register
+    methods: POST
+
+user_login:
+    path: /api/login
+    controller: App\Controller\SecurityController::login
+    methods: POST
+
+api_books_get:
+    path: /api/books
+    controller: App\Controller\BookController::getBooks
+    methods: GET
+
+api_books_post:
+    path: /api/books
+    controller: App\Controller\BookController::createBook
+    methods: POST
+
+api_books_delete:
+    path: /api/books/{id}/delete
+    controller: App\Controller\BookController::deleteBook
+    methods: DELETE
+    
+api_books_get_one:
+    path: /api/books/{id}
+    controller: App\Controller\BookController::getBook
+    methods: GET
+ 
+api_books_put:
+    path: /api/books/{id}/put
+    controller: App\Controller\BookController::updateBook
+    methods: PUT
+ 
+api_user_get:
+    path: /api/users/{id}
+    controller: App\Controller\UserController::getUserinfo
+    methods: GET
+
+api_users_get_all:
+    path: /api/users
+    controller: App\Controller\UserController::getAllUsers
+    methods: GET
+
+api_user_update:
+    path: /api/users/{id}/put
+    controller: App\Controller\UserController::updateUser
+    methods: [PUT, PATCH]
+
+api_user_delete:
+    path: /api/users/{id}/delete
+    controller: App\Controller\UserController::deleteUser
+    methods: DELETE

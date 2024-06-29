@@ -5,31 +5,66 @@
 namespace App\Controller;
 
 use App\Entity\Book;
-use App\Repository\BookRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[Route('/api/books', name: 'api_books_')]
+
 class BookController extends AbstractController
 {
-    #[Route('/', name: 'index', methods: ['GET'])]
-    public function index(BookRepository $bookRepository): Response
+    #[Route('/api/books', name: 'api_books_get', methods: ['GET'])]
+    public function getBooks(EntityManagerInterface $em): JsonResponse
     {
-        $books = $bookRepository->findAll();
-        return $this->json($books);
+        $books = $em->getRepository(Book::class)->findAll();
+        
+        $data = [];
+        foreach ($books as $book) {
+            $data[] = [
+                'id' => $book->getId(),
+                'title' => $book->getTitle(),
+                'author' => $book->getAuthor(),
+                'isbn' => $book->getIsbn(),
+                'publicationDate' => $book->getPublicationDate(),
+                'publisher' => $book->getPublisher(),
+                'genre' => $book->getGenre(),
+                'summary' => $book->getSummary(),
+                'pageCount' => $book->getPageCount(),
+                'coverImage' => $book->getCoverImage(),
+                'createdAt' => $book->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $book->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
-    #[Route('/{id}', name: 'show', methods: ['GET'])]
-    public function show(Book $book): Response
+    #[Route('/api/books/{id}', name: 'api_books_get_one', methods: ['GET'])]
+    public function getBook(Book $book): JsonResponse
     {
-        return $this->json($book);
+        $data = [
+            'id' => $book->getId(),
+            'title' => $book->getTitle(),
+            'author' => $book->getAuthor(),
+            'isbn' => $book->getIsbn(),
+            'publicationDate' => $book->getPublicationDate(),
+            'publisher' => $book->getPublisher(),
+            'genre' => $book->getGenre(),
+            'summary' => $book->getSummary(),
+            'pageCount' => $book->getPageCount(),
+            'coverImage' => $book->getCoverImage(),
+            'createdAt' => $book->getCreatedAt()->format('Y-m-d H:i:s'),
+            'updatedAt' => $book->getUpdatedAt()->format('Y-m-d H:i:s'),
+        ];
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
-    #[Route('/', name: 'create', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $em): Response
+    #[Route('/api/books/post', name: 'api_books_post', methods: ['POST'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
+    public function createBook(Request $request, EntityManagerInterface $em): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
@@ -49,11 +84,12 @@ class BookController extends AbstractController
         $em->persist($book);
         $em->flush();
 
-        return $this->json($book, Response::HTTP_CREATED);
+        return new JsonResponse($book, JsonResponse::HTTP_CREATED);
     }
 
-    #[Route('/{id}', name: 'update', methods: ['PUT'])]
-    public function update(Request $request, Book $book, EntityManagerInterface $em): Response
+    #[Route('/api/books/{id}/put', name: 'api_books_put', methods: ['PUT'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
+    public function updateBook(Request $request, Book $book, EntityManagerInterface $em): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
@@ -70,15 +106,16 @@ class BookController extends AbstractController
 
         $em->flush();
 
-        return $this->json($book);
+        return new JsonResponse($book);
     }
 
-    #[Route('/{id}', name: 'delete', methods: ['DELETE'])]
-    public function delete(Book $book, EntityManagerInterface $em): Response
+    #[Route('/api/books/{id}/delete', name: 'api_books_delete', methods: ['DELETE'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
+    public function deleteBook(Book $book, EntityManagerInterface $em): JsonResponse
     {
         $em->remove($book);
         $em->flush();
 
-        return $this->json(null, Response::HTTP_NO_CONTENT);
+        return new JsonResponse(['status' => 'Book deleted']);
     }
 }
