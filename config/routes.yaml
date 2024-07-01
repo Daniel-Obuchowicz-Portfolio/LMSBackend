@@ -4,8 +4,8 @@ user_register:
     methods: POST
 
 user_login:
-    path: /api/login
-    controller: App\Controller\SecurityController::login
+    path: /api/login/2fa
+    controller: App\Controller\SecurityController::loginn
     methods: POST
 
 api_books_get:
@@ -52,3 +52,8 @@ api_user_delete:
     path: /api/users/{id}/delete
     controller: App\Controller\UserController::deleteUser
     methods: DELETE
+
+api_user:
+    path: /api/user
+    controller: App\Controller\UserController::getUserInfos
+    methods: GET

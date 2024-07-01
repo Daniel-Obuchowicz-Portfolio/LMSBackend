@@ -4,15 +4,24 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class UserController extends AbstractController
 {
+    private $tokenStorage;
+
+    public function __construct(TokenStorageInterface $tokenStorage)
+    {
+        $this->tokenStorage = $tokenStorage;
+    }
+    
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function register(Request $request, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -154,4 +163,40 @@ class UserController extends AbstractController
 
         return new JsonResponse(['status' => 'User deleted'], JsonResponse::HTTP_OK);
     }
+
+    /**
+     * @Route("/api/user", name="api_user", methods={"GET"})
+     */
+    public function getUserInfos(): JsonResponse
+    {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $data = [
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+            'first_name' => $user->getFirstName(),
+            'last_name' => $user->getLastName(),
+            'date_of_birth' => $user->getDateOfBirth(),
+            'gender' => $user->getGender(),
+            'phone_number' => $user->getPhoneNumber(),
+            'address' => $user->getAddress(),
+            'profile_picture' => $user->getProfilePicture(),
+            'is_active' => $user->isActive(),
+            'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
+            'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
+        ];
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+
 }
