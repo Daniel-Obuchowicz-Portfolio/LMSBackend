@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Repository\BookRepository;
 
 
 class BookController extends AbstractController
@@ -117,5 +118,13 @@ class BookController extends AbstractController
         $em->flush();
 
         return new JsonResponse(['status' => 'Book deleted']);
+    }
+
+    #[Route('/api/count/books', name: 'api_books_count', methods: ['GET'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
+    public function countBooks(EntityManagerInterface $em): JsonResponse
+    {
+        $bookCount = $em->getRepository(Book::class)->count([]);
+        return new JsonResponse(['count' => $bookCount], JsonResponse::HTTP_OK);
     }
 }

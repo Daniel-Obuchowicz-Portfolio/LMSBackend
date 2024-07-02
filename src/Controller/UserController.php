@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class UserController extends AbstractController
 {
@@ -197,6 +198,14 @@ class UserController extends AbstractController
         ];
 
         return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+
+    #[Route('/api/count/users', name: 'api_users_count', methods: ['GET'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
+    public function countUsers(EntityManagerInterface $em): JsonResponse
+    {
+        $userCount = $em->getRepository(User::class)->count([]);
+        return new JsonResponse(['count' => $userCount], JsonResponse::HTTP_OK);
     }
 
 }

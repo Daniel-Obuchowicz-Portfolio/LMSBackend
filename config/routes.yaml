@@ -57,3 +57,13 @@ api_user:
     path: /api/user
     controller: App\Controller\UserController::getUserInfos
     methods: GET
+
+api_books_count:
+    path: /api/count/books
+    controller: App\Controller\BookController::countBooks
+    methods: GET
+
+api_users_count:
+    path: /api/count/users
+    controller: App\Controller\UserController::countUsers
+    methods: GET
