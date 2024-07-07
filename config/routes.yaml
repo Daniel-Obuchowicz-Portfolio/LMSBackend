@@ -67,3 +67,8 @@ api_users_count:
     path: /api/count/users
     controller: App\Controller\UserController::countUsers
     methods: GET
+    
+api_users_search:
+    path: /api/usersearch
+    controller: App\Controller\UserController::searchUsers
+    methods: GET

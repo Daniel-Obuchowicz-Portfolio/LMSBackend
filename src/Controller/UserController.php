@@ -22,7 +22,7 @@ class UserController extends AbstractController
     {
         $this->tokenStorage = $tokenStorage;
     }
-    
+
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function register(Request $request, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -69,6 +69,17 @@ class UserController extends AbstractController
     #[Route('/api/users/{id}', name: 'api_user_get', methods: ['GET'])]
     public function getUserinfo(User $user): JsonResponse
     {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
         $data = [
             'id' => $user->getId(),
             'email' => $user->getEmail(),
@@ -90,6 +101,17 @@ class UserController extends AbstractController
     #[Route('/api/users', name: 'api_users_get_all', methods: ['GET'])]
     public function getAllUsers(EntityManagerInterface $entityManager): JsonResponse
     {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
         $users = $entityManager->getRepository(User::class)->findAll();
 
         $data = [];
@@ -116,6 +138,17 @@ class UserController extends AbstractController
     #[Route('/api/users/{id}/put', name: 'api_user_update', methods: ['PUT', 'PATCH'])]
     public function updateUser(Request $request, User $user, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $entityManager): JsonResponse
     {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
         $data = json_decode($request->getContent(), true);
 
         if (isset($data['email'])) {
@@ -159,15 +192,25 @@ class UserController extends AbstractController
     #[Route('/api/users/{id}/delete', name: 'api_user_delete', methods: ['DELETE'])]
     public function deleteUser(User $user, EntityManagerInterface $entityManager): JsonResponse
     {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
         $entityManager->remove($user);
         $entityManager->flush();
 
         return new JsonResponse(['status' => 'User deleted'], JsonResponse::HTTP_OK);
     }
 
-    /**
-     * @Route("/api/user", name="api_user", methods={"GET"})
-     */
+    #[Route('/api/user', name: 'api_user', methods: ['GET'])]
     public function getUserInfos(): JsonResponse
     {
         $token = $this->tokenStorage->getToken();
@@ -207,5 +250,53 @@ class UserController extends AbstractController
         $userCount = $em->getRepository(User::class)->count([]);
         return new JsonResponse(['count' => $userCount], JsonResponse::HTTP_OK);
     }
+
+    #[Route('/api/usersearch', name: 'api_users_search', methods: ['GET'])]
+    public function searchUsers(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $searchTerm = $request->query->get('query'); // Pobieranie parametru 'query' z URL
+
+        // Użycie repozytorium do wyszukiwania użytkowników po imieniu lub nazwisku
+        $userRepository = $entityManager->getRepository(User::class);
+        $users = $userRepository->createQueryBuilder('u')
+            ->where('u.firstName LIKE :searchTerm OR u.lastName LIKE :searchTerm')
+            ->setParameter('searchTerm', '%' . $searchTerm . '%')
+            ->getQuery()
+            ->getResult();
+
+        // Przygotowanie danych do odpowiedzi
+        $data = [];
+        foreach ($users as $user) {
+            $data[] = [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'first_name' => $user->getFirstName(),
+                'last_name' => $user->getLastName(),
+                'date_of_birth' => $user->getDateOfBirth(),
+                'gender' => $user->getGender(),
+                'phone_number' => $user->getPhoneNumber(),
+                'address' => $user->getAddress(),
+                'profile_picture' => $user->getProfilePicture(),
+                'is_active' => $user->isActive(),
+                'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        // Zwrócenie wyników jako odpowiedź JSON
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+
 
 }
