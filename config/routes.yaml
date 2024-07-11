@@ -14,7 +14,7 @@ api_books_get:
     methods: GET
 
 api_books_post:
-    path: /api/books
+    path: /api/books/post
     controller: App\Controller\BookController::createBook
     methods: POST
 
@@ -71,4 +71,9 @@ api_users_count:
 api_users_search:
     path: /api/usersearch
     controller: App\Controller\UserController::searchUsers
+    methods: GET
+
+api_books_search:
+    path: /api/booksearch
+    controller: App\Controller\BookController::searchBooks
     methods: GET

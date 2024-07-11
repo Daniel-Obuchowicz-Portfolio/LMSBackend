@@ -4,6 +4,8 @@
 
 namespace App\Controller;
 
+
+use App\Entity\User;
 use App\Entity\Book;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -12,15 +14,27 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Repository\BookRepository;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 
 class BookController extends AbstractController
 {
+    private $tokenStorage;
+
+    public function __construct(TokenStorageInterface $tokenStorage)
+    {
+        $this->tokenStorage = $tokenStorage;
+    }
+
     #[Route('/api/books', name: 'api_books_get', methods: ['GET'])]
     public function getBooks(EntityManagerInterface $em): JsonResponse
     {
         $books = $em->getRepository(Book::class)->findAll();
-        
+
         $data = [];
         foreach ($books as $book) {
             $data[] = [
@@ -78,7 +92,40 @@ class BookController extends AbstractController
         $book->setGenre($data['genre']);
         $book->setSummary($data['summary']);
         $book->setPageCount($data['pageCount']);
-        $book->setCoverImage($data['coverImage']);
+        // $book->setCoverImage($data['coverImage']);
+
+        $base64Content = $data['profile_picture_p'] ?? null;
+        if ($base64Content) {
+            // Validate Base64 format
+            if (preg_match('/^data:image\/\w+;base64,/', $base64Content)) {
+                $base64Content = substr($base64Content, strpos($base64Content, ',') + 1);
+                $base64Content = base64_decode($base64Content, true);
+
+                if ($base64Content === false) {
+                    return new JsonResponse(['message' => 'Invalid image data'], Response::HTTP_BAD_REQUEST);
+                }
+
+                // Save the image to a temporary file
+                $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.png';
+                file_put_contents($tempFilePath, $base64Content);
+
+                // Create UploadedFile object to manage file operations
+                $file = new UploadedFile($tempFilePath, 'profile_picture.png', 'image/png', null, true);
+
+                // Move the file to the uploads directory
+                $filename = md5(uniqid()) . '.png';
+                try {
+                    $file->move($this->getParameter('kernel.project_dir') . '/public/uploads/book', $filename);
+                    $baseUrl = $this->getParameter('kernel.environment') === 'dev' ? $this->getParameter('DEV_BASE_URL') : $this->getParameter('PROD_BASE_URL');
+                    $book->setCoverImage($baseUrl . '/uploads/book/' . $filename);
+                } catch (FileException $e) {
+                    unlink($tempFilePath); // Clean up the temporary file
+                    return new JsonResponse(['message' => 'File could not be saved'], Response::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            } else {
+                return new JsonResponse(['message' => 'Invalid image data format'], Response::HTTP_BAD_REQUEST);
+            }
+        }
         $book->setCreatedAt(new \DateTimeImmutable());
         $book->setUpdatedAt(new \DateTimeImmutable());
 
@@ -103,6 +150,39 @@ class BookController extends AbstractController
         $book->setSummary($data['summary']);
         $book->setPageCount($data['pageCount']);
         $book->setCoverImage($data['coverImage']);
+
+        $base64Content = $data['profile_picture_p'] ?? null;
+        if ($base64Content) {
+            // Validate Base64 format
+            if (preg_match('/^data:image\/\w+;base64,/', $base64Content)) {
+                $base64Content = substr($base64Content, strpos($base64Content, ',') + 1);
+                $base64Content = base64_decode($base64Content, true);
+
+                if ($base64Content === false) {
+                    return new JsonResponse(['message' => 'Invalid image data'], Response::HTTP_BAD_REQUEST);
+                }
+
+                // Save the image to a temporary file
+                $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.png';
+                file_put_contents($tempFilePath, $base64Content);
+
+                // Create UploadedFile object to manage file operations
+                $file = new UploadedFile($tempFilePath, 'profile_picture.png', 'image/png', null, true);
+
+                // Move the file to the uploads directory
+                $filename = md5(uniqid()) . '.png';
+                try {
+                    $file->move($this->getParameter('kernel.project_dir') . '/public/uploads/book', $filename);
+                    $baseUrl = $this->getParameter('kernel.environment') === 'dev' ? $this->getParameter('DEV_BASE_URL') : $this->getParameter('PROD_BASE_URL');
+                    $book->setCoverImage($baseUrl . '/uploads/book/' . $filename);
+                } catch (FileException $e) {
+                    unlink($tempFilePath); // Clean up the temporary file
+                    return new JsonResponse(['message' => 'File could not be saved'], Response::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            } else {
+                return new JsonResponse(['message' => 'Invalid image data format'], Response::HTTP_BAD_REQUEST);
+            }
+        }
         $book->setUpdatedAt(new \DateTimeImmutable());
 
         $em->flush();
@@ -126,5 +206,52 @@ class BookController extends AbstractController
     {
         $bookCount = $em->getRepository(Book::class)->count([]);
         return new JsonResponse(['count' => $bookCount], JsonResponse::HTTP_OK);
+    }
+
+    #[Route('/api/booksearch', name: 'api_books_search', methods: ['GET'])]
+    public function searchBooks(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $searchTerm = $request->query->get('query'); // Pobieranie parametru 'query' z URL
+
+        // Użycie repozytorium do wyszukiwania użytkowników po imieniu lub nazwisku
+        $boorRepository = $entityManager->getRepository(Book::class);
+        $books = $boorRepository->createQueryBuilder('u')
+            ->where('u.title LIKE :searchTerm OR u.author LIKE :searchTerm')
+            ->setParameter('searchTerm', '%' . $searchTerm . '%')
+            ->getQuery()
+            ->getResult();
+
+        // Przygotowanie danych do odpowiedzi
+        $data = [];
+        foreach ($books as $book) {
+            $data[] = [
+                'id' => $book->getId(),
+                'title' => $book->getTitle(),
+                'author' => $book->getAuthor(),
+                'isbn' => $book->getIsbn(),
+                'publicationDate' => $book->getPublicationDate(),
+                'publisher' => $book->getPublisher(),
+                'genre' => $book->getGenre(),
+                'summary' => $book->getSummary(),
+                'pageCount' => $book->getPageCount(),
+                'coverImage' => $book->getCoverImage(),
+                'createdAt' => $book->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $book->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        // Zwrócenie wyników jako odpowiedź JSON
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 }
