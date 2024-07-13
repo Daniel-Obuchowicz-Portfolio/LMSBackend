@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -61,6 +63,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    #[ORM\OneToOne(mappedBy: 'User', cascade: ['persist', 'remove'])]
+    private ?Borrowings $UserID = null;
+
 
     public function getId(): ?int
     {
@@ -256,4 +262,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     
         return $this;
     }
+
+    public function getUserID(): ?Borrowings
+    {
+        return $this->UserID;
+    }
+
+    public function setUserID(Borrowings $UserID): static
+    {
+        // set the owning side of the relation if necessary
+        if ($UserID->getUser() !== $this) {
+            $UserID->setUser($this);
+        }
+
+        $this->UserID = $UserID;
+
+        return $this;
+    }
+
 }

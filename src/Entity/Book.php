@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\BookRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: BookRepository::class)]
@@ -45,6 +47,9 @@ class Book
 
     #[ORM\Column]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    #[ORM\OneToOne(mappedBy: 'Book', cascade: ['persist', 'remove'])]
+    private ?Borrowings $BookID = null;
 
     public function getId(): ?int
     {
@@ -179,6 +184,23 @@ class Book
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    public function getBookID(): ?Borrowings
+    {
+        return $this->BookID;
+    }
+
+    public function setBookID(Borrowings $BookID): static
+    {
+        // set the owning side of the relation if necessary
+        if ($BookID->getBook() !== $this) {
+            $BookID->setBook($this);
+        }
+
+        $this->BookID = $BookID;
 
         return $this;
     }

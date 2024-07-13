@@ -77,3 +77,18 @@ api_books_search:
     path: /api/booksearch
     controller: App\Controller\BookController::searchBooks
     methods: GET
+
+api_borrowings_index:
+    path: /api/borrowings
+    controller: App\Controller\BorrowingsController::getallBorrowings
+    methods: GET
+
+api_borrowings_by_book:
+    path: /api/borrowings/book/{id}
+    controller: App\Controller\BorrowingsController::getBorrowingsByBook
+    methods: GET
+
+api_borrowings_by_user:
+    path: /api/borrowings/user/{id}
+    controller: App\Controller\BorrowingsController::getBorrowingsByUser
+    methods: GET
