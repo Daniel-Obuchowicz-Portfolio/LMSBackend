@@ -7,7 +7,6 @@ use App\Entity\Borrowings;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
@@ -75,8 +74,8 @@ class BorrowingsController extends AbstractController
                 'id' => $borrowing->getId(),
                 'book' => $bookDetails,
                 'user' => $borrowerDetails,
-                'borrowing_date' => $borrowing->getBorrowingDate(),
-                'realreturndate' => $borrowing->getRealreturndate(),
+                'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
+                'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
             ];
         }
@@ -88,7 +87,7 @@ class BorrowingsController extends AbstractController
     #[Route('/api/borrowings/book/{id}', name: 'getBorrowingsByBook', methods: ['GET'])]
     public function getBorrowingsByBook(int $id, EntityManagerInterface $em): JsonResponse
     {
-        $borrowings = $em->getRepository(Borrowings::class)->findBy(['Book' => $id]);
+        $borrowings = $em->getRepository(Borrowings::class)->findBy(['book' => $id]);
 
         $data = [];
         foreach ($borrowings as $borrowing) {
@@ -128,8 +127,8 @@ class BorrowingsController extends AbstractController
                 'id' => $borrowing->getId(),
                 'book' => $bookDetails,
                 'user' => $borrowerDetails,
-                'borrowing_date' => $borrowing->getBorrowingDate(),
-                'realreturndate' => $borrowing->getRealreturndate(),
+                'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
+                'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
             ];
         }
@@ -140,7 +139,7 @@ class BorrowingsController extends AbstractController
     #[Route('/api/borrowings/user/{id}', name: 'getBorrowingsByUser', methods: ['GET'])]
     public function getBorrowingsByUser(int $id, EntityManagerInterface $em): JsonResponse
     {
-        $borrowings = $em->getRepository(Borrowings::class)->findBy(['User' => $id]);
+        $borrowings = $em->getRepository(Borrowings::class)->findBy(['user' => $id]);
 
         $data = [];
         foreach ($borrowings as $borrowing) {
@@ -180,14 +179,12 @@ class BorrowingsController extends AbstractController
                 'id' => $borrowing->getId(),
                 'book' => $bookDetails,
                 'user' => $borrowerDetails,
-                'borrowing_date' => $borrowing->getBorrowingDate(),
-                'realreturndate' => $borrowing->getRealreturndate(),
+                'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
+                'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
             ];
         }
 
         return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
-
 }
-

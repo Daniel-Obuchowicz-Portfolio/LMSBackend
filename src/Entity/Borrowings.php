@@ -14,19 +14,19 @@ class Borrowings
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\OneToOne(inversedBy: 'BookID', cascade: ['persist', 'remove'])]
+    #[ORM\ManyToOne(targetEntity: Book::class, inversedBy: 'borrowings')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Book $Book = null;
+    private ?Book $book = null;
 
-    #[ORM\OneToOne(inversedBy: 'UserID', cascade: ['persist', 'remove'])]
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'borrowings')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?User $User = null;
+    private ?User $user = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $borrowing_date = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
-    private ?\DateTimeInterface $realreturndate = null;
+    private ?\DateTimeInterface $real_return_date = null;
 
     #[ORM\Column(length: 255)]
     private ?string $comments = null;
@@ -38,25 +38,23 @@ class Borrowings
 
     public function getBook(): ?Book
     {
-        return $this->Book;
+        return $this->book;
     }
 
-    public function setBook(Book $Book): static
+    public function setBook(Book $book): static
     {
-        $this->Book = $Book;
-
+        $this->book = $book;
         return $this;
     }
 
     public function getUser(): ?User
     {
-        return $this->User;
+        return $this->user;
     }
 
-    public function setUser(User $User): static
+    public function setUser(User $user): static
     {
-        $this->User = $User;
-
+        $this->user = $user;
         return $this;
     }
 
@@ -68,19 +66,17 @@ class Borrowings
     public function setBorrowingDate(\DateTimeInterface $borrowing_date): static
     {
         $this->borrowing_date = $borrowing_date;
-
         return $this;
     }
 
-    public function getRealreturndate(): ?\DateTimeInterface
+    public function getRealReturnDate(): ?\DateTimeInterface
     {
-        return $this->realreturndate;
+        return $this->real_return_date;
     }
 
-    public function setRealreturndate(\DateTimeInterface $realreturndate): static
+    public function setRealReturnDate(\DateTimeInterface $real_return_date): static
     {
-        $this->realreturndate = $realreturndate;
-
+        $this->real_return_date = $real_return_date;
         return $this;
     }
 
@@ -92,7 +88,6 @@ class Borrowings
     public function setComments(string $comments): static
     {
         $this->comments = $comments;
-
         return $this;
     }
 }

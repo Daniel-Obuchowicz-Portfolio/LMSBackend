@@ -48,8 +48,13 @@ class Book
     #[ORM\Column]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ORM\OneToOne(mappedBy: 'Book', cascade: ['persist', 'remove'])]
-    private ?Borrowings $BookID = null;
+    #[ORM\OneToMany(mappedBy: 'book', targetEntity: Borrowings::class)]
+    private Collection $borrowings;
+
+    public function __construct()
+    {
+        $this->borrowings = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -64,7 +69,6 @@ class Book
     public function setTitle(string $title): static
     {
         $this->title = $title;
-
         return $this;
     }
 
@@ -76,7 +80,6 @@ class Book
     public function setAuthor(string $author): static
     {
         $this->author = $author;
-
         return $this;
     }
 
@@ -88,7 +91,6 @@ class Book
     public function setIsbn(string $isbn): static
     {
         $this->isbn = $isbn;
-
         return $this;
     }
 
@@ -100,7 +102,6 @@ class Book
     public function setPublicationDate(string $publicationDate): static
     {
         $this->publicationDate = $publicationDate;
-
         return $this;
     }
 
@@ -112,7 +113,6 @@ class Book
     public function setPublisher(string $publisher): static
     {
         $this->publisher = $publisher;
-
         return $this;
     }
 
@@ -124,7 +124,6 @@ class Book
     public function setGenre(string $genre): static
     {
         $this->genre = $genre;
-
         return $this;
     }
 
@@ -136,7 +135,6 @@ class Book
     public function setSummary(string $summary): static
     {
         $this->summary = $summary;
-
         return $this;
     }
 
@@ -148,7 +146,6 @@ class Book
     public function setPageCount(string $pageCount): static
     {
         $this->pageCount = $pageCount;
-
         return $this;
     }
 
@@ -157,10 +154,9 @@ class Book
         return $this->coverImage;
     }
 
-    public function setCoverImage(string $coverImage): static
+    public function setCoverImage(?string $coverImage): static
     {
         $this->coverImage = $coverImage;
-
         return $this;
     }
 
@@ -172,7 +168,6 @@ class Book
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
-
         return $this;
     }
 
@@ -184,23 +179,35 @@ class Book
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Borrowings>
+     */
+    public function getBorrowings(): Collection
+    {
+        return $this->borrowings;
+    }
+
+    public function addBorrowing(Borrowings $borrowing): static
+    {
+        if (!$this->borrowings->contains($borrowing)) {
+            $this->borrowings->add($borrowing);
+            $borrowing->setBook($this);
+        }
 
         return $this;
     }
 
-    public function getBookID(): ?Borrowings
+    public function removeBorrowing(Borrowings $borrowing): static
     {
-        return $this->BookID;
-    }
-
-    public function setBookID(Borrowings $BookID): static
-    {
-        // set the owning side of the relation if necessary
-        if ($BookID->getBook() !== $this) {
-            $BookID->setBook($this);
+        if ($this->borrowings->removeElement($borrowing)) {
+            // set the owning side to null (unless already changed)
+            if ($borrowing->getBook() === $this) {
+                // $borrowing->setBook(null);
+            }
         }
-
-        $this->BookID = $BookID;
 
         return $this;
     }

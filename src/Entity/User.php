@@ -64,9 +64,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ORM\OneToOne(mappedBy: 'User', cascade: ['persist', 'remove'])]
-    private ?Borrowings $UserID = null;
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Borrowings::class)]
+    private Collection $borrowings;
 
+    public function __construct()
+    {
+        $this->borrowings = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -81,7 +85,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setEmail(string $email): static
     {
         $this->email = $email;
-
         return $this;
     }
 
@@ -105,7 +108,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $roles = $this->roles;
         // guarantee every user at least has ROLE_USER
         $roles[] = 'ROLE_USER';
-
         return array_unique($roles);
     }
 
@@ -115,7 +117,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
-
         return $this;
     }
 
@@ -130,7 +131,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPassword(string $password): static
     {
         $this->password = $password;
-
         return $this;
     }
 
@@ -151,7 +151,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setFirstName(string $firstName): static
     {
         $this->firstName = $firstName;
-
         return $this;
     }
 
@@ -163,7 +162,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setLastName(string $lastName): static
     {
         $this->lastName = $lastName;
-
         return $this;
     }
 
@@ -175,7 +173,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setDateOfBirth(string $dateOfBirth): static
     {
         $this->dateOfBirth = $dateOfBirth;
-
         return $this;
     }
 
@@ -187,7 +184,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setGender(string $gender): static
     {
         $this->gender = $gender;
-
         return $this;
     }
 
@@ -199,7 +195,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPhoneNumber(string $phoneNumber): static
     {
         $this->phoneNumber = $phoneNumber;
-
         return $this;
     }
 
@@ -211,7 +206,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setAddress(string $address): static
     {
         $this->address = $address;
-
         return $this;
     }
 
@@ -220,10 +214,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->profilePicture;
     }
 
-    public function setProfilePicture(string $profilePicture): static
+    public function setProfilePicture(?string $profilePicture): static
     {
         $this->profilePicture = $profilePicture;
-
         return $this;
     }
 
@@ -235,7 +228,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setActive(bool $isActive): static
     {
         $this->isActive = $isActive;
-
         return $this;
     }
 
@@ -244,10 +236,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt = null): static
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
-        $this->createdAt = $createdAt ?? new \DateTimeImmutable();
-
+        $this->createdAt = $createdAt;
         return $this;
     }
 
@@ -256,28 +247,39 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(\DateTimeImmutable $updatedAt = null): static
+    public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
     {
-        $this->updatedAt = new \DateTimeImmutable();
-    
+        $this->updatedAt = $updatedAt;
         return $this;
     }
 
-    public function getUserID(): ?Borrowings
+    /**
+     * @return Collection<int, Borrowings>
+     */
+    public function getBorrowings(): Collection
     {
-        return $this->UserID;
+        return $this->borrowings;
     }
 
-    public function setUserID(Borrowings $UserID): static
+    public function addBorrowing(Borrowings $borrowing): static
     {
-        // set the owning side of the relation if necessary
-        if ($UserID->getUser() !== $this) {
-            $UserID->setUser($this);
+        if (!$this->borrowings->contains($borrowing)) {
+            $this->borrowings->add($borrowing);
+            $borrowing->setUser($this);
         }
 
-        $this->UserID = $UserID;
-
         return $this;
     }
 
+    public function removeBorrowing(Borrowings $borrowing): static
+    {
+        if ($this->borrowings->removeElement($borrowing)) {
+            // set the owning side to null (unless already changed)
+            if ($borrowing->getUser() === $this) {
+                // $borrowing->setUser(null);
+            }
+        }
+
+        return $this;
+    }
 }
