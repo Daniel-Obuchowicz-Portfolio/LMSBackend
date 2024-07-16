@@ -4,8 +4,10 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Entity\Borrowings;
+use App\Entity\Book;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -137,9 +139,15 @@ class BorrowingsController extends AbstractController
     }
 
     #[Route('/api/borrowings/user/{id}', name: 'getBorrowingsByUser', methods: ['GET'])]
-    public function getBorrowingsByUser(int $id, EntityManagerInterface $em): JsonResponse
+    public function getBorrowingsByUser(int $id, Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $borrowings = $em->getRepository(Borrowings::class)->findBy(['user' => $id]);
+        $sortField = $request->query->get('sortField', 'id'); // Default sort field
+        $sortOrder = $request->query->get('sortOrder', 'DESC'); // Default sort order
+
+        $borrowings = $em->getRepository(Borrowings::class)->findBy(
+            ['user' => $id],
+            [$sortField => $sortOrder]
+        );
 
         $data = [];
         foreach ($borrowings as $borrowing) {
@@ -186,5 +194,33 @@ class BorrowingsController extends AbstractController
         }
 
         return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+    #[Route('/api/readerdetails/{id}/borrow', name: 'addBorrowing', methods: ['POST'])]
+    public function addBorrowing(int $id, Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['book_id'], $data['borrowing_date'], $data['realreturndate'])) {
+            return new JsonResponse(['message' => 'Invalid data'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $user = $em->getRepository(User::class)->find($id);
+        $book = $em->getRepository(Book::class)->find($data['book_id']);
+
+        if (!$user || !$book) {
+            return new JsonResponse(['message' => 'User or Book not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        $borrowing = new Borrowings();
+        $borrowing->setUser($user);
+        $borrowing->setBook($book);
+        $borrowing->setBorrowingDate(new \DateTime($data['borrowing_date']));
+        $borrowing->setRealReturnDate(new \DateTime($data['realreturndate']));
+        $borrowing->setComments($data['comments'] ?? '');
+
+        $em->persist($borrowing);
+        $em->flush();
+
+        return new JsonResponse(['message' => 'Borrowing record added successfully'], JsonResponse::HTTP_CREATED);
     }
 }

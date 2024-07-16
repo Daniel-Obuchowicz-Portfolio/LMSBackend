@@ -92,3 +92,9 @@ api_borrowings_by_user:
     path: /api/borrowings/user/{id}
     controller: App\Controller\BorrowingsController::getBorrowingsByUser
     methods: GET
+
+api_borrowings_by_user_add:
+    path: /api/readerdetails/{id}/borrow
+    controller: App\Controller\BorrowingsController::addBorrowing
+    methods: POST
+
