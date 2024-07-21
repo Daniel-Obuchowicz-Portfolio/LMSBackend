@@ -84,6 +84,7 @@ class BorrowingsController extends AbstractController
                 'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
                 'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
+                'status' => $borrowing->getStatus(),
                 'prolongation' => $borrowing->getProlongation()?->format('Y-m-d') ?? '0000-00-00',
             ];
         }
@@ -138,6 +139,7 @@ class BorrowingsController extends AbstractController
                 'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
                 'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
+                'status' => $borrowing->getStatus(),
                 'prolongation' => $borrowing->getProlongation()?->format('Y-m-d') ?? '0000-00-00',
             ];
         }
@@ -197,6 +199,7 @@ class BorrowingsController extends AbstractController
                 'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
                 'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
+                'status' => $borrowing->getStatus(),
                 'prolongation' => $borrowing->getProlongation()?->format('Y-m-d') ?? '0000-00-00',
             ];
         }
@@ -224,8 +227,9 @@ class BorrowingsController extends AbstractController
         $borrowing->setBook($book);
         $borrowing->setBorrowingDate(new \DateTime($data['borrowing_date']));
         $borrowing->setRealReturnDate($data['realreturndate'] ? new \DateTime($data['realreturndate']) : new \DateTime('0000-00-00'));
-        $borrowing->setProlongation($data['prolongation'] ? new \DateTime($data['prolongation']) : new \DateTime('0000-00-00'));
+        $borrowing->setProlongation(null);
         $borrowing->setComments($data['comments'] ?? '');
+        $borrowing->setStatus('pending');
 
         $em->persist($borrowing);
         $em->flush();
@@ -272,12 +276,92 @@ class BorrowingsController extends AbstractController
         }
 
         $borrowing->setRealReturnDate($this->setDateOrDefault($data['realreturndate'], new \DateTime('0000-00-00')));
+        $borrowing->setStatus('returned');
 
         $em->persist($borrowing);
         $em->flush();
 
         return new JsonResponse(['message' => 'Real return date updated successfully'], JsonResponse::HTTP_OK);
     }
+
+    #[Route('/api/borrowingsbystatus/user/{id}', name: 'getBorrowingsByUserByStatus', methods: ['GET'])]
+    public function getBorrowingsByUserByStatus(int $id, Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $sortField = $request->query->get('sortField', 'id'); // Default sort field
+        $sortOrder = $request->query->get('sortOrder', 'DESC'); // Default sort order
+        $status = $request->query->get('status'); // Get status from query
+
+        // Validate sortField and sortOrder values
+        $validSortFields = ['id', 'borrowing_date', 'realreturndate', 'status'];
+        if (!in_array($sortField, $validSortFields)) {
+            return new JsonResponse(['message' => 'Invalid sort field'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $validSortOrders = ['ASC', 'DESC'];
+        if (!in_array($sortOrder, $validSortOrders)) {
+            return new JsonResponse(['message' => 'Invalid sort order'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $criteria = ['user' => $id];
+        if ($status) {
+            $criteria['status'] = $status;
+        }
+
+        $borrowings = $em->getRepository(Borrowings::class)->findBy(
+            $criteria,
+            [$sortField => $sortOrder]
+        );
+
+        $data = [];
+        foreach ($borrowings as $borrowing) {
+            $book = $borrowing->getBook();
+            $bookDetails = [
+                'id' => $book->getId(),
+                'title' => $book->getTitle(),
+                'author' => $book->getAuthor(),
+                'isbn' => $book->getIsbn(),
+                'publicationDate' => $book->getPublicationDate(),
+                'publisher' => $book->getPublisher(),
+                'genre' => $book->getGenre(),
+                'summary' => $book->getSummary(),
+                'pageCount' => $book->getPageCount(),
+                'coverImage' => $book->getCoverImage(),
+                'createdAt' => $book->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $book->getUpdatedAt()->format('Y-m-d H:i:s')
+            ];
+
+            $borrower = $borrowing->getUser();
+            $borrowerDetails = [
+                'id' => $borrower->getId(),
+                'email' => $borrower->getEmail(),
+                'first_name' => $borrower->getFirstName(),
+                'last_name' => $borrower->getLastName(),
+                'date_of_birth' => $borrower->getDateOfBirth(),
+                'gender' => $borrower->getGender(),
+                'phone_number' => $borrower->getPhoneNumber(),
+                'address' => $borrower->getAddress(),
+                'profile_picture' => $borrower->getProfilePicture(),
+                'is_active' => $borrower->isActive(),
+                'created_at' => $borrower->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updated_at' => $borrower->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ];
+
+            $data[] = [
+                'id' => $borrowing->getId(),
+                'book' => $bookDetails,
+                'user' => $borrowerDetails,
+                'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
+                'realreturndate' => $borrowing->getRealReturnDate() ? $borrowing->getRealReturnDate()->format('Y-m-d') : 'N/A',
+                'comments' => $borrowing->getComments(),
+                'status' => $borrowing->getStatus(),
+                'prolongation' => $borrowing->getProlongation() ? $borrowing->getProlongation()->format('Y-m-d') : '0000-00-00',
+            ];
+        }
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+
+
 
 
 }

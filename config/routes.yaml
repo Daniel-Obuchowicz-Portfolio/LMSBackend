@@ -108,3 +108,8 @@ api_date_update:
     controller: App\Controller\BorrowingsController::updateRealReturnDate
     methods: POST
 
+api_borrowings_by_user_and_status:
+    path: /api/borrowingsbystatus/user/{id}
+    controller: App\Controller\BorrowingsController::getBorrowingsByUserByStatus
+    methods: GET
+
