@@ -97,4 +97,14 @@ api_borrowings_by_user_add:
     path: /api/readerdetails/{id}/borrow
     controller: App\Controller\BorrowingsController::addBorrowing
     methods: POST
+    
+api_update_prolongation:
+    path: /api/borrowings/{id}/prolongation
+    controller: App\Controller\BorrowingsController::updateProlongation
+    methods: POST
+    
+api_date_update:
+    path: /api/borrowings/{id}/updatrealreturndate
+    controller: App\Controller\BorrowingsController::updateRealReturnDate
+    methods: POST
 

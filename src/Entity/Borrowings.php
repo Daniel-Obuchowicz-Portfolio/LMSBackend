@@ -23,13 +23,18 @@ class Borrowings
     private ?User $user = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?\DateTimeInterface $borrowing_date = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?\DateTimeInterface $real_return_date = null;
 
     #[ORM\Column(length: 255)]
     private ?string $comments = null;
+
+    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $prolongation = null;
 
     public function getId(): ?int
     {
@@ -88,6 +93,18 @@ class Borrowings
     public function setComments(string $comments): static
     {
         $this->comments = $comments;
+        return $this;
+    }
+
+    public function getProlongation(): ?\DateTimeInterface
+    {
+        return $this->prolongation;
+    }
+
+    public function setProlongation(?\DateTimeInterface $prolongation): static
+    {
+        $this->prolongation = $prolongation;
+
         return $this;
     }
 }

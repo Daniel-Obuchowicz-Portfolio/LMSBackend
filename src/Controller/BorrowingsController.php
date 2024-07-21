@@ -16,6 +16,11 @@ class BorrowingsController extends AbstractController
 {
     private $tokenStorage;
 
+    private function setDateOrDefault(?string $date, \DateTime $default): \DateTime
+    {
+        return $date ? new \DateTime($date) : $default;
+    }
+
     public function __construct(TokenStorageInterface $tokenStorage)
     {
         $this->tokenStorage = $tokenStorage;
@@ -79,6 +84,7 @@ class BorrowingsController extends AbstractController
                 'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
                 'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
+                'prolongation' => $borrowing->getProlongation()?->format('Y-m-d') ?? '0000-00-00',
             ];
         }
 
@@ -132,6 +138,7 @@ class BorrowingsController extends AbstractController
                 'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
                 'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
+                'prolongation' => $borrowing->getProlongation()?->format('Y-m-d') ?? '0000-00-00',
             ];
         }
 
@@ -190,6 +197,7 @@ class BorrowingsController extends AbstractController
                 'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
                 'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
                 'comments' => $borrowing->getComments(),
+                'prolongation' => $borrowing->getProlongation()?->format('Y-m-d') ?? '0000-00-00',
             ];
         }
 
@@ -215,7 +223,8 @@ class BorrowingsController extends AbstractController
         $borrowing->setUser($user);
         $borrowing->setBook($book);
         $borrowing->setBorrowingDate(new \DateTime($data['borrowing_date']));
-        $borrowing->setRealReturnDate(new \DateTime($data['realreturndate']));
+        $borrowing->setRealReturnDate($data['realreturndate'] ? new \DateTime($data['realreturndate']) : new \DateTime('0000-00-00'));
+        $borrowing->setProlongation($data['prolongation'] ? new \DateTime($data['prolongation']) : new \DateTime('0000-00-00'));
         $borrowing->setComments($data['comments'] ?? '');
 
         $em->persist($borrowing);
@@ -223,4 +232,52 @@ class BorrowingsController extends AbstractController
 
         return new JsonResponse(['message' => 'Borrowing record added successfully'], JsonResponse::HTTP_CREATED);
     }
+
+    #[Route('/api/borrowings/{id}/prolongation', name: 'updateProlongation', methods: ['POST'])]
+    public function updateProlongation(int $id, Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['prolongation'])) {
+            return new JsonResponse(['message' => 'Invalid data'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $borrowing = $em->getRepository(Borrowings::class)->find($id);
+
+        if (!$borrowing) {
+            return new JsonResponse(['message' => 'Borrowing record not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        $borrowing->setProlongation($this->setDateOrDefault($data['prolongation'], new \DateTime('0000-00-00')));
+
+        $em->persist($borrowing);
+        $em->flush();
+
+        return new JsonResponse(['message' => 'Prolongation updated successfully'], JsonResponse::HTTP_OK);
+    }
+
+    #[Route('/api/borrowings/{id}/realreturndate', name: 'updateRealReturnDate', methods: ['POST'])]
+    public function updateRealReturnDate(int $id, Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['realreturndate'])) {
+            return new JsonResponse(['message' => 'Invalid data'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $borrowing = $em->getRepository(Borrowings::class)->find($id);
+
+        if (!$borrowing) {
+            return new JsonResponse(['message' => 'Borrowing record not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        $borrowing->setRealReturnDate($this->setDateOrDefault($data['realreturndate'], new \DateTime('0000-00-00')));
+
+        $em->persist($borrowing);
+        $em->flush();
+
+        return new JsonResponse(['message' => 'Real return date updated successfully'], JsonResponse::HTTP_OK);
+    }
+
+
 }
