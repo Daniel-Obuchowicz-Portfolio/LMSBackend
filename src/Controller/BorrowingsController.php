@@ -361,7 +361,66 @@ class BorrowingsController extends AbstractController
         return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
+    #[Route('/api/borrowings/5/user/{id}', name: 'getBorrowings5ByUser', methods: ['GET'])]
+    public function getBorrowings5ByUser(int $id, Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $sortField = $request->query->get('sortField', 'id'); // Default sort field
+        $sortOrder = $request->query->get('sortOrder', 'DESC'); // Default sort order
 
+        $borrowings = $em->getRepository(Borrowings::class)->findBy(
+            ['user' => $id],
+            [$sortField => $sortOrder],
+            5
+        );
+
+        $data = [];
+        foreach ($borrowings as $borrowing) {
+            $book = $borrowing->getBook();
+            $bookDetails = [
+                'id' => $book->getId(),
+                'title' => $book->getTitle(),
+                'author' => $book->getAuthor(),
+                'isbn' => $book->getIsbn(),
+                'publicationDate' => $book->getPublicationDate(),
+                'publisher' => $book->getPublisher(),
+                'genre' => $book->getGenre(),
+                'summary' => $book->getSummary(),
+                'pageCount' => $book->getPageCount(),
+                'coverImage' => $book->getCoverImage(),
+                'createdAt' => $book->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $book->getUpdatedAt()->format('Y-m-d H:i:s')
+            ];
+
+            $borrower = $borrowing->getUser();
+            $borrowerDetails = [
+                'id' => $borrower->getId(),
+                'email' => $borrower->getEmail(),
+                'first_name' => $borrower->getFirstName(),
+                'last_name' => $borrower->getLastName(),
+                'date_of_birth' => $borrower->getDateOfBirth(),
+                'gender' => $borrower->getGender(),
+                'phone_number' => $borrower->getPhoneNumber(),
+                'address' => $borrower->getAddress(),
+                'profile_picture' => $borrower->getProfilePicture(),
+                'is_active' => $borrower->isActive(),
+                'created_at' => $borrower->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updated_at' => $borrower->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ];
+
+            $data[] = [
+                'id' => $borrowing->getId(),
+                'book' => $bookDetails,
+                'user' => $borrowerDetails,
+                'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
+                'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
+                'comments' => $borrowing->getComments(),
+                'status' => $borrowing->getStatus(),
+                'prolongation' => $borrowing->getProlongation()?->format('Y-m-d') ?? '0000-00-00',
+            ];
+        }
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
 
 
 }

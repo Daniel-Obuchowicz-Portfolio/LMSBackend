@@ -104,7 +104,7 @@ api_update_prolongation:
     methods: POST
     
 api_date_update:
-    path: /api/borrowings/{id}/updatrealreturndate
+    path: /api/borrowings/{id}/realreturndate
     controller: App\Controller\BorrowingsController::updateRealReturnDate
     methods: POST
 
@@ -113,3 +113,7 @@ api_borrowings_by_user_and_status:
     controller: App\Controller\BorrowingsController::getBorrowingsByUserByStatus
     methods: GET
 
+api_borrowings_by_user_5:
+    path: /api/borrowings/5/user/{id}
+    controller: App\Controller\BorrowingsController::getBorrowings5ByUser
+    methods: GET
