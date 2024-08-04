@@ -56,6 +56,32 @@ class BookController extends AbstractController
         return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
+    #[Route('/api/fivebooks', name: 'api_books_get_five', methods: ['GET'])]
+    public function getBooksFive(EntityManagerInterface $em): JsonResponse
+    {
+        $books = $em->getRepository(Book::class)->findBy([], null, 5);
+
+        $data = [];
+        foreach ($books as $book) {
+            $data[] = [
+                'id' => $book->getId(),
+                'title' => $book->getTitle(),
+                'author' => $book->getAuthor(),
+                'isbn' => $book->getIsbn(),
+                'publicationDate' => $book->getPublicationDate(),
+                'publisher' => $book->getPublisher(),
+                'genre' => $book->getGenre(),
+                'summary' => $book->getSummary(),
+                'pageCount' => $book->getPageCount(),
+                'coverImage' => $book->getCoverImage(),
+                'createdAt' => $book->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $book->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+
     #[Route('/api/books/{id}', name: 'api_books_get_one', methods: ['GET'])]
     public function getBook(Book $book): JsonResponse
     {

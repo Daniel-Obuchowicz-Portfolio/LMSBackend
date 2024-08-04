@@ -423,4 +423,103 @@ class BorrowingsController extends AbstractController
     }
 
 
+    #[Route('/api/filteredBorrowings', name: 'getFilteredBorrowings', methods: ['GET'])]
+    public function getFilteredBorrowings(EntityManagerInterface $em): JsonResponse
+    {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['message' => 'User not found'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        $borrowings = $em->getRepository(Borrowings::class)->findAll();
+        $currentDate = new \DateTime();
+        $thresholdDate = $currentDate->modify('-30 days');
+
+        $data = [];
+        foreach ($borrowings as $borrowing) {
+            $borrowingDate = $borrowing->getBorrowingDate();
+            $status = $borrowing->getStatus();
+            $prolongation = $borrowing->getProlongation();
+            
+            // Checking conditions
+            if ($borrowingDate < $thresholdDate && $status === 'pending') {
+                if ($prolongation !== null && $prolongation <= $currentDate) {
+                    continue; // Skip this borrowing
+                }
+
+                $book = $borrowing->getBook();
+                $bookDetails = [
+                    'id' => $book->getId(),
+                    'title' => $book->getTitle(),
+                    'author' => $book->getAuthor(),
+                    'isbn' => $book->getIsbn(),
+                    'publicationDate' => $book->getPublicationDate(),
+                    'publisher' => $book->getPublisher(),
+                    'genre' => $book->getGenre(),
+                    'summary' => $book->getSummary(),
+                    'pageCount' => $book->getPageCount(),
+                    'coverImage' => $book->getCoverImage(),
+                    'createdAt' => $book->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'updatedAt' => $book->getUpdatedAt()->format('Y-m-d H:i:s')
+                ];
+
+                $borrower = $borrowing->getUser();
+                $borrowerDetails = [
+                    'id' => $borrower->getId(),
+                    'email' => $borrower->getEmail(),
+                    'first_name' => $borrower->getFirstName(),
+                    'last_name' => $borrower->getLastName(),
+                    'date_of_birth' => $borrower->getDateOfBirth(),
+                    'gender' => $borrower->getGender(),
+                    'phone_number' => $borrower->getPhoneNumber(),
+                    'address' => $borrower->getAddress(),
+                    'profile_picture' => $borrower->getProfilePicture(),
+                    'is_active' => $borrower->isActive(),
+                    'created_at' => $borrower->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'updated_at' => $borrower->getUpdatedAt()->format('Y-m-d H:i:s'),
+                ];
+
+                $data[] = [
+                    'id' => $borrowing->getId(),
+                    'book' => $bookDetails,
+                    'user' => $borrowerDetails,
+                    'borrowing_date' => $borrowing->getBorrowingDate()->format('Y-m-d'),
+                    'realreturndate' => $borrowing->getRealReturnDate()->format('Y-m-d'),
+                    'comments' => $borrowing->getComments(),
+                    'status' => $borrowing->getStatus(),
+                    'prolongation' => $borrowing->getProlongation()?->format('Y-m-d') ?? '0000-00-00',
+                ];
+            }
+        }
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+
+    #[Route('/api/borrowings/monthly', name: 'api_borrowings_monthly', methods: ['GET'])]
+    public function getMonthlyBorrowings(EntityManagerInterface $em): JsonResponse
+    {
+        $borrowings = $em->getRepository(Borrowings::class)->findAll();
+
+        $monthlyBorrowings = array_fill(1, 12, 0); // Inicjalizacja tablicy dla 12 miesięcy
+
+        foreach ($borrowings as $borrowing) {
+            $borrowingDate = $borrowing->getBorrowingDate();
+            $month = (int) $borrowingDate->format('n'); // Pobierz numer miesiąca (1-12)
+            $monthlyBorrowings[$month]++;
+        }
+
+        // Zamiana kluczy z 1-12 na indeksy tablicy 0-11
+        $result = array_values($monthlyBorrowings);
+
+        return new JsonResponse($result, JsonResponse::HTTP_OK);
+    }
+
+
 }

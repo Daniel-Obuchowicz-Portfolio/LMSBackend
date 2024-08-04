@@ -117,3 +117,28 @@ api_borrowings_by_user_5:
     path: /api/borrowings/5/user/{id}
     controller: App\Controller\BorrowingsController::getBorrowings5ByUser
     methods: GET
+    
+api_getFilteredBorrowings:
+    path: /api/filteredBorrowings
+    controller: App\Controller\BorrowingsController::getFilteredBorrowings
+    methods: GET
+
+api_fivebooks:
+    path: /api/fivebooks
+    controller: App\Controller\BookController::getBooksFive
+    methods: GET
+
+api_fiveusers:
+    path: /api/fiveusers
+    controller: App\Controller\UserController::getFiveUsers
+    methods: GET
+
+api_borrowingsmonthly:
+    path: /api/borrowingsmonthly
+    controller: App\Controller\BorrowingsController::getMonthlyBorrowings
+    methods: GET
+
+api_usersmonthly:
+    path: /api/usersmonthly
+    controller: App\Controller\UserController::getMonthlyUsers
+    methods: GET

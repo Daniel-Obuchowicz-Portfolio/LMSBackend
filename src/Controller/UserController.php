@@ -179,6 +179,44 @@ class UserController extends AbstractController
         return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
+    #[Route('/api/fiveusers', name: 'api_users_get_five', methods: ['GET'])]
+    public function getFiveUsers(EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        $users = $entityManager->getRepository(User::class)->findBy([], null, 5);
+
+        $data = [];
+        foreach ($users as $user) {
+            $data[] = [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'first_name' => $user->getFirstName(),
+                'last_name' => $user->getLastName(),
+                'date_of_birth' => $user->getDateOfBirth(),
+                'gender' => $user->getGender(),
+                'phone_number' => $user->getPhoneNumber(),
+                'address' => $user->getAddress(),
+                'profile_picture' => $user->getProfilePicture(),
+                'is_active' => $user->isActive(),
+                'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+
+
     #[Route('/api/users/{id}/put', name: 'api_user_update', methods: ['PUT', 'PATCH'])]
     public function updateUser(int $id, Request $request, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -353,6 +391,37 @@ class UserController extends AbstractController
 
         // Zwrócenie wyników jako odpowiedź JSON
         return new JsonResponse($data, JsonResponse::HTTP_OK);
+    }
+
+    #[Route('/api/usersmonthly', name: 'api_users_monthly', methods: ['GET'])]
+    public function getMonthlyUsers(EntityManagerInterface $entityManager): JsonResponse
+    {
+        $token = $this->tokenStorage->getToken();
+
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $user = $token->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        $users = $entityManager->getRepository(User::class)->findAll();
+
+        $monthlyUsers = array_fill(1, 12, 0); // Inicjalizacja tablicy dla 12 miesięcy
+
+        foreach ($users as $user) {
+            $createdAt = $user->getCreatedAt();
+            $month = (int) $createdAt->format('n'); // Pobierz numer miesiąca (1-12)
+            $monthlyUsers[$month]++;
+        }
+
+        // Zamiana kluczy z 1-12 na indeksy tablicy 0-11
+        $result = array_values($monthlyUsers);
+
+        return new JsonResponse($result, JsonResponse::HTTP_OK);
     }
 
 
