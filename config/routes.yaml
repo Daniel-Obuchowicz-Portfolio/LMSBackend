@@ -138,6 +138,11 @@ api_borrowingsmonthly:
     controller: App\Controller\BorrowingsController::getMonthlyBorrowings
     methods: GET
 
+api_borrowingsmonthly_five:
+    path: /api/filteredBorrowingsfive
+    controller: App\Controller\BorrowingsController::getFilteredBorrowingsfive
+    methods: GET
+
 api_usersmonthly:
     path: /api/usersmonthly
     controller: App\Controller\UserController::getMonthlyUsers
