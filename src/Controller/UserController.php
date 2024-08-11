@@ -1,10 +1,7 @@
 <?php
-// src/Controller/UserController.php
-
 namespace App\Controller;
 
 use App\Entity\User;
-use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,9 +12,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
-
 
 class UserController extends AbstractController
 {
@@ -26,6 +21,60 @@ class UserController extends AbstractController
     public function __construct(TokenStorageInterface $tokenStorage)
     {
         $this->tokenStorage = $tokenStorage;
+    }
+
+    private function validateToken(): ?JsonResponse
+    {
+        $token = $this->tokenStorage->getToken();
+        if (!$token) {
+            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+        return null;
+    }
+
+    private function formatUserData(User $user): array
+    {
+        return [
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+            'first_name' => $user->getFirstName(),
+            'last_name' => $user->getLastName(),
+            'date_of_birth' => $user->getDateOfBirth(),
+            'gender' => $user->getGender(),
+            'phone_number' => $user->getPhoneNumber(),
+            'address' => $user->getAddress(),
+            'profile_picture' => $user->getProfilePicture(),
+            'is_active' => $user->isActive(),
+            'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
+            'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    private function handleImageUpload(?string $base64Content): ?string
+    {
+        if ($base64Content && preg_match('/^data:image\/\w+;base64,/', $base64Content)) {
+            $base64Content = substr($base64Content, strpos($base64Content, ',') + 1);
+            $base64Content = base64_decode($base64Content, true);
+
+            if ($base64Content === false) {
+                return null;
+            }
+
+            $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.png';
+            file_put_contents($tempFilePath, $base64Content);
+
+            $file = new UploadedFile($tempFilePath, 'profile_picture.png', 'image/png', null, true);
+            $filename = md5(uniqid()) . '.png';
+            try {
+                $file->move($this->getParameter('kernel.project_dir') . '/public/uploads', $filename);
+                $baseUrl = $this->getParameter('kernel.environment') === 'dev' ? $this->getParameter('DEV_BASE_URL') : $this->getParameter('PROD_BASE_URL');
+                return $baseUrl . '/uploads/' . $filename;
+            } catch (FileException $e) {
+                unlink($tempFilePath);
+                return null;
+            }
+        }
+        return null;
     }
 
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
@@ -42,62 +91,15 @@ class UserController extends AbstractController
         $user->setPassword($passwordHasher->hashPassword($user, $data['password']));
         $user->setFirstName($data['first_name']);
         $user->setLastName($data['last_name']);
+        $user->setDateOfBirth($data['date_of_birth'] ?? null);
+        $user->setGender($data['gender'] ?? null);
+        $user->setPhoneNumber($data['phone_number'] ?? null);
+        $user->setAddress($data['address'] ?? null);
+        $user->setActive($data['is_active'] ?? true);
 
-        if (isset($data['date_of_birth'])) {
-            $user->setDateOfBirth(($data['date_of_birth']));
-        }
-        if (isset($data['gender'])) {
-            $user->setGender($data['gender']);
-        }
-        if (isset($data['phone_number'])) {
-            $user->setPhoneNumber($data['phone_number']);
-        }
-        if (isset($data['address'])) {
-            $user->setAddress($data['address']);
-        }
-        if (isset($data['profile_picture'])) {
-            $user->setProfilePicture($data['profile_picture']);
-        }
-        if (isset($data['is_active'])) {
-            $user->setActive($data['is_active']);
-        }
-
-        if (!empty($data['password'])) {
-            $user->setPassword($passwordHasher->hashPassword($user, $data['password']));
-        }
-
-        // Handling profile picture upload
-        $base64Content = $data['profile_picture_p'] ?? null;
-        if ($base64Content) {
-            // Validate Base64 format
-            if (preg_match('/^data:image\/\w+;base64,/', $base64Content)) {
-                $base64Content = substr($base64Content, strpos($base64Content, ',') + 1);
-                $base64Content = base64_decode($base64Content, true);
-
-                if ($base64Content === false) {
-                    return new JsonResponse(['message' => 'Invalid image data'], Response::HTTP_BAD_REQUEST);
-                }
-
-                // Save the image to a temporary file
-                $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.png';
-                file_put_contents($tempFilePath, $base64Content);
-
-                // Create UploadedFile object to manage file operations
-                $file = new UploadedFile($tempFilePath, 'profile_picture.png', 'image/png', null, true);
-
-                // Move the file to the uploads directory
-                $filename = md5(uniqid()) . '.png';
-                try {
-                    $file->move($this->getParameter('kernel.project_dir') . '/public/uploads', $filename);
-                    $baseUrl = $this->getParameter('kernel.environment') === 'dev' ? $this->getParameter('DEV_BASE_URL') : $this->getParameter('PROD_BASE_URL');
-                    $user->setProfilePicture($baseUrl . '/uploads/' . $filename);
-                } catch (FileException $e) {
-                    unlink($tempFilePath); // Clean up the temporary file
-                    return new JsonResponse(['message' => 'File could not be saved'], Response::HTTP_INTERNAL_SERVER_ERROR);
-                }
-            } else {
-                return new JsonResponse(['message' => 'Invalid image data format'], Response::HTTP_BAD_REQUEST);
-            }
+        $profilePictureUrl = $this->handleImageUpload($data['profile_picture_p'] ?? null);
+        if ($profilePictureUrl) {
+            $user->setProfilePicture($profilePictureUrl);
         }
 
         $user->setCreatedAt(new \DateTimeImmutable());
@@ -110,126 +112,64 @@ class UserController extends AbstractController
     }
 
     #[Route('/api/users/{id}', name: 'api_user_get', methods: ['GET'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
     public function getUserinfo(int $id, EntityManagerInterface $entityManager): JsonResponse
     {
-        $token = $this->tokenStorage->getToken();
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
         }
 
         $user = $entityManager->getRepository(User::class)->find($id);
-
         if (!$user) {
             return new JsonResponse(['message' => 'User not found'], JsonResponse::HTTP_NOT_FOUND);
         }
 
-        $data = [
-            'id' => $user->getId(),
-            'email' => $user->getEmail(),
-            'first_name' => $user->getFirstName(),
-            'last_name' => $user->getLastName(),
-            'date_of_birth' => $user->getDateOfBirth(),
-            'gender' => $user->getGender(),
-            'phone_number' => $user->getPhoneNumber(),
-            'address' => $user->getAddress(),
-            'profile_picture' => $user->getProfilePicture(),
-            'is_active' => $user->isActive(),
-            'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
-            'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
-        ];
-
-        return new JsonResponse($data, JsonResponse::HTTP_OK);
+        return new JsonResponse($this->formatUserData($user), JsonResponse::HTTP_OK);
     }
 
     #[Route('/api/users', name: 'api_users_get_all', methods: ['GET'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
     public function getAllUsers(EntityManagerInterface $entityManager): JsonResponse
     {
-        $token = $this->tokenStorage->getToken();
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
         }
 
-        $user = $token->getUser();
-
-        if (!$user instanceof User) {
-            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
-        }
         $users = $entityManager->getRepository(User::class)->findAll();
-
-        $data = [];
-        foreach ($users as $user) {
-            $data[] = [
-                'id' => $user->getId(),
-                'email' => $user->getEmail(),
-                'first_name' => $user->getFirstName(),
-                'last_name' => $user->getLastName(),
-                'date_of_birth' => $user->getDateOfBirth(),
-                'gender' => $user->getGender(),
-                'phone_number' => $user->getPhoneNumber(),
-                'address' => $user->getAddress(),
-                'profile_picture' => $user->getProfilePicture(),
-                'is_active' => $user->isActive(),
-                'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
-            ];
-        }
+        $data = array_map([$this, 'formatUserData'], $users);
 
         return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
     #[Route('/api/fiveusers', name: 'api_users_get_five', methods: ['GET'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
     public function getFiveUsers(EntityManagerInterface $entityManager): JsonResponse
     {
-        $token = $this->tokenStorage->getToken();
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
         }
 
-        $user = $token->getUser();
-
-        if (!$user instanceof User) {
-            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
-        }
         $users = $entityManager->getRepository(User::class)->findBy([], null, 5);
-
-        $data = [];
-        foreach ($users as $user) {
-            $data[] = [
-                'id' => $user->getId(),
-                'email' => $user->getEmail(),
-                'first_name' => $user->getFirstName(),
-                'last_name' => $user->getLastName(),
-                'date_of_birth' => $user->getDateOfBirth(),
-                'gender' => $user->getGender(),
-                'phone_number' => $user->getPhoneNumber(),
-                'address' => $user->getAddress(),
-                'profile_picture' => $user->getProfilePicture(),
-                'is_active' => $user->isActive(),
-                'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
-            ];
-        }
+        $data = array_map([$this, 'formatUserData'], $users);
 
         return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
-
     #[Route('/api/users/{id}/put', name: 'api_user_update', methods: ['PUT', 'PATCH'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
     public function updateUser(int $id, Request $request, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $entityManager): JsonResponse
     {
-        // Retrieve the user
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
+        }
+
         $user = $entityManager->getRepository(User::class)->find($id);
         if (!$user) {
             return new JsonResponse(['message' => 'User not found'], JsonResponse::HTTP_NOT_FOUND);
         }
 
-        // Decode JSON data
         $data = json_decode($request->getContent(), true);
 
-        // Update basic user information
         $user->setEmail($data['email'] ?? $user->getEmail());
         $user->setFirstName($data['first_name'] ?? $user->getFirstName());
         $user->setLastName($data['last_name'] ?? $user->getLastName());
@@ -239,64 +179,26 @@ class UserController extends AbstractController
         $user->setGender($data['gender'] ?? $user->getGender());
         $user->setActive($data['is_active'] ?? $user->isActive());
 
-        // Handle password update
         if (!empty($data['password'])) {
             $user->setPassword($passwordHasher->hashPassword($user, $data['password']));
         }
 
-        // Handling profile picture upload
-        $base64Content = $data['profile_picture_p'] ?? null;
-        if ($base64Content) {
-            // Validate Base64 format
-            if (preg_match('/^data:image\/\w+;base64,/', $base64Content)) {
-                $base64Content = substr($base64Content, strpos($base64Content, ',') + 1);
-                $base64Content = base64_decode($base64Content, true);
-
-                if ($base64Content === false) {
-                    return new JsonResponse(['message' => 'Invalid image data'], Response::HTTP_BAD_REQUEST);
-                }
-
-                // Save the image to a temporary file
-                $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.png';
-                file_put_contents($tempFilePath, $base64Content);
-
-                // Create UploadedFile object to manage file operations
-                $file = new UploadedFile($tempFilePath, 'profile_picture.png', 'image/png', null, true);
-
-                // Move the file to the uploads directory
-                $filename = md5(uniqid()) . '.png';
-                try {
-                    $file->move($this->getParameter('kernel.project_dir') . '/public/uploads', $filename);
-                    $baseUrl = $this->getParameter('kernel.environment') === 'dev' ? $this->getParameter('DEV_BASE_URL') : $this->getParameter('PROD_BASE_URL');
-                    $user->setProfilePicture($baseUrl . '/uploads/' . $filename);
-                } catch (FileException $e) {
-                    unlink($tempFilePath); // Clean up the temporary file
-                    return new JsonResponse(['message' => 'File could not be saved'], Response::HTTP_INTERNAL_SERVER_ERROR);
-                }
-            } else {
-                return new JsonResponse(['message' => 'Invalid image data format'], Response::HTTP_BAD_REQUEST);
-            }
+        $profilePictureUrl = $this->handleImageUpload($data['profile_picture_p'] ?? null);
+        if ($profilePictureUrl) {
+            $user->setProfilePicture($profilePictureUrl);
         }
 
-        // Persist changes to the database
         $entityManager->flush();
 
         return new JsonResponse(['status' => 'User updated successfully', 'profilePicture' => $user->getProfilePicture()], JsonResponse::HTTP_OK);
     }
-    
+
     #[Route('/api/users/{id}/delete', name: 'api_user_delete', methods: ['DELETE'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
     public function deleteUser(User $user, EntityManagerInterface $entityManager): JsonResponse
     {
-        $token = $this->tokenStorage->getToken();
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
-        }
-
-        $user = $token->getUser();
-
-        if (!$user instanceof User) {
-            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
         }
 
         $entityManager->remove($user);
@@ -306,123 +208,72 @@ class UserController extends AbstractController
     }
 
     #[Route('/api/user', name: 'api_user', methods: ['GET'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
     public function getUserInfos(): JsonResponse
     {
-        $token = $this->tokenStorage->getToken();
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
         }
 
-        $user = $token->getUser();
+        $user = $this->tokenStorage->getToken()->getUser();
 
         if (!$user instanceof User) {
             return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
         }
 
-        $data = [
-            'id' => $user->getId(),
-            'email' => $user->getEmail(),
-            'first_name' => $user->getFirstName(),
-            'last_name' => $user->getLastName(),
-            'date_of_birth' => $user->getDateOfBirth(),
-            'gender' => $user->getGender(),
-            'phone_number' => $user->getPhoneNumber(),
-            'address' => $user->getAddress(),
-            'profile_picture' => $user->getProfilePicture(),
-            'is_active' => $user->isActive(),
-            'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
-            'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
-        ];
-
-        return new JsonResponse($data, JsonResponse::HTTP_OK);
+        return new JsonResponse($this->formatUserData($user), JsonResponse::HTTP_OK);
     }
 
     #[Route('/api/count/users', name: 'api_users_count', methods: ['GET'])]
     #[IsGranted('ROLE_EMPLOYEE')]
     public function countUsers(EntityManagerInterface $em): JsonResponse
     {
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
+        }
+
         $userCount = $em->getRepository(User::class)->count([]);
         return new JsonResponse(['count' => $userCount], JsonResponse::HTTP_OK);
     }
 
     #[Route('/api/usersearch', name: 'api_users_search', methods: ['GET'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
     public function searchUsers(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
-        $token = $this->tokenStorage->getToken();
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
         }
 
-        $user = $token->getUser();
+        $searchTerm = $request->query->get('query');
 
-        if (!$user instanceof User) {
-            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
-        }
-        $searchTerm = $request->query->get('query'); // Pobieranie parametru 'query' z URL
-
-        // Użycie repozytorium do wyszukiwania użytkowników po imieniu lub nazwisku
-        $userRepository = $entityManager->getRepository(User::class);
-        $users = $userRepository->createQueryBuilder('u')
+        $users = $entityManager->getRepository(User::class)->createQueryBuilder('u')
             ->where('u.firstName LIKE :searchTerm OR u.lastName LIKE :searchTerm')
             ->setParameter('searchTerm', '%' . $searchTerm . '%')
             ->getQuery()
             ->getResult();
 
-        // Przygotowanie danych do odpowiedzi
-        $data = [];
-        foreach ($users as $user) {
-            $data[] = [
-                'id' => $user->getId(),
-                'email' => $user->getEmail(),
-                'first_name' => $user->getFirstName(),
-                'last_name' => $user->getLastName(),
-                'date_of_birth' => $user->getDateOfBirth(),
-                'gender' => $user->getGender(),
-                'phone_number' => $user->getPhoneNumber(),
-                'address' => $user->getAddress(),
-                'profile_picture' => $user->getProfilePicture(),
-                'is_active' => $user->isActive(),
-                'created_at' => $user->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updated_at' => $user->getUpdatedAt()->format('Y-m-d H:i:s'),
-            ];
-        }
+        $data = array_map([$this, 'formatUserData'], $users);
 
-        // Zwrócenie wyników jako odpowiedź JSON
         return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
     #[Route('/api/usersmonthly', name: 'api_users_monthly', methods: ['GET'])]
+    #[IsGranted('ROLE_EMPLOYEE')]
     public function getMonthlyUsers(EntityManagerInterface $entityManager): JsonResponse
     {
-        $token = $this->tokenStorage->getToken();
-
-        if (!$token) {
-            return new JsonResponse(['message' => 'Token not found'], JsonResponse::HTTP_UNAUTHORIZED);
-        }
-
-        $user = $token->getUser();
-
-        if (!$user instanceof User) {
-            return new JsonResponse(['message' => 'User not found or not an instance of User'], JsonResponse::HTTP_UNAUTHORIZED);
+        if ($errorResponse = $this->validateToken()) {
+            return $errorResponse;
         }
 
         $users = $entityManager->getRepository(User::class)->findAll();
 
-        $monthlyUsers = array_fill(1, 12, 0); // Inicjalizacja tablicy dla 12 miesięcy
+        $monthlyUsers = array_fill(1, 12, 0);
 
         foreach ($users as $user) {
-            $createdAt = $user->getCreatedAt();
-            $month = (int) $createdAt->format('n'); // Pobierz numer miesiąca (1-12)
+            $month = (int) $user->getCreatedAt()->format('n');
             $monthlyUsers[$month]++;
         }
 
-        // Zamiana kluczy z 1-12 na indeksy tablicy 0-11
-        $result = array_values($monthlyUsers);
-
-        return new JsonResponse($result, JsonResponse::HTTP_OK);
+        return new JsonResponse(array_values($monthlyUsers), JsonResponse::HTTP_OK);
     }
-
-
 }
