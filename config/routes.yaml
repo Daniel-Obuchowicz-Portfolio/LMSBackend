@@ -3,6 +3,11 @@ user_register:
     controller: App\Controller\UserController::register
     methods: POST
 
+user_register_by_user:
+    path: /register
+    controller: App\Controller\UserController::registerbyuser
+    methods: POST
+
 user_login:
     path: /api/login/2fa
     controller: App\Controller\SecurityController::loginn

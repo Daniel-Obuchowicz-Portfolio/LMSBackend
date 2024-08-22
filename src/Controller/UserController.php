@@ -111,6 +111,40 @@ class UserController extends AbstractController
         return new JsonResponse(['status' => 'User created'], JsonResponse::HTTP_CREATED);
     }
 
+    #[Route('/register', name: 'api_register_byuser', methods: ['POST'])]
+    public function registerbyuser(Request $request, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['email']) || !isset($data['password']) || !isset($data['first_name']) || !isset($data['last_name'])) {
+            return new JsonResponse(['status' => 'Invalid data'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $user = new User();
+        $user->setEmail($data['email']);
+        $user->setPassword($passwordHasher->hashPassword($user, $data['password']));
+        $user->setFirstName($data['first_name']);
+        $user->setLastName($data['last_name']);
+        $user->setDateOfBirth($data['date_of_birth'] ?? null);
+        $user->setGender($data['gender'] ?? null);
+        $user->setPhoneNumber($data['phone_number'] ?? null);
+        $user->setAddress($data['address'] ?? null);
+        $user->setActive($data['is_active'] ?? true);
+
+        $profilePictureUrl = $this->handleImageUpload($data['profile_picture_p'] ?? null);
+        if ($profilePictureUrl) {
+            $user->setProfilePicture($profilePictureUrl);
+        }
+
+        $user->setCreatedAt(new \DateTimeImmutable());
+        $user->setUpdatedAt(new \DateTimeImmutable());
+
+        $entityManager->persist($user);
+        $entityManager->flush();
+
+        return new JsonResponse(['status' => 'User created'], JsonResponse::HTTP_CREATED);
+    }
+
     #[Route('/api/users/{id}', name: 'api_user_get', methods: ['GET'])]
     #[IsGranted('ROLE_EMPLOYEE')]
     public function getUserinfo(int $id, EntityManagerInterface $entityManager): JsonResponse
